@@ -1,6 +1,10 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const mongoose = require('mongoose')
+const dotenv = require('dotenv')
+const Post = require('./models/post')
 
+dotenv.config()
 const app = express();
 
 app.use(bodyParser.json())
@@ -13,34 +17,33 @@ app.use((_, res, next) => {
     next();
 })
 
-let posts = [
-    {
-        id: 'blaId2323',
-        title: "Title",
-        content: "Inner content of post"
-    },
-    {
-        id: "fdfdf2323",
-        title: "Title2",
-        content: "Inner content of post"
-    }
-]
+const mongoConnectionString = `mongodb+srv://${process.env.MONGO_DB_USERNAME}:${process.env.MONGO_DB_PASSWORD}@shopcluster.qj0ue.mongodb.net/${process.env.MONGO_DB_NAME}?retryWrites=true&w=majority`
 
-app.post('/api/posts', (req, res, next) => {
-    const post = req.body
-    console.log(post)
-    posts.push({
-        ...post,
-        id: Math.random().toString(36).substring(7)
-    })
-    res.status(201).json()
+mongoose.connect(`mongodb+srv://${process.env.MONGO_DB_USERNAME}:${process.env.MONGO_DB_PASSWORD}@shopcluster.qj0ue.mongodb.net/${process.env.MONGO_DB_NAME}?retryWrites=true&w=majority`,
+    {
+        useNewUrlParser: true,
+        useUnifiedTopology: true
+    }).then(() => {
+        app.post('/api/posts', (req, res, next) => {
+            const post = new Post({
+                title: req.body.title,
+                content: req.body.content
+            })
+            post.save((err, post) => {
+                if(err) return res.status(400).json()
+                res.status(201).json()
+            })
+        })
+        
+        app.get('/api/posts', async (req, res, next) => {
+            const posts = await Post.find({})
+            res.status(200).json({
+                message: "Sending posts",
+                posts
+            })
+        })
 })
 
-app.get('/api/posts', (req, res, next) => {
-    res.status(200).json({
-        message: "Sending posts",
-        posts
-    })
-})
+
 
 module.exports = app
