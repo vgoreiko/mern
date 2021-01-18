@@ -3,22 +3,33 @@ const bodyParser = require('body-parser');
 const mongoose = require('mongoose')
 const dotenv = require('dotenv')
 const Post = require('./models/post')
+const winston = require('winston')
+const expressWinston = require('express-winston')
 
 dotenv.config()
 const app = express();
 
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({extended: true}))
+app.use(expressWinston.logger({
+    transports: [
+      new winston.transports.Console()
+    ],
+    format: winston.format.combine(
+      winston.format.colorize(),
+      winston.format.json()
+    )
+  }));
 
 app.use((_, res, next) => {
     res.setHeader("Access-Control-Allow-Origin", "*")
     res.setHeader("Access-Control-Allow-Headers", 'Origin, X-Requested-With, Content-Type, Accept, Access-Control-Request-Headers, Access-Control-Request-Method, content-type')
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, OPTIONS, HEAD")
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, OPTIONS, HEAD, DELETE")
     next();
 })
 
 const mongoConnectionString = `mongodb+srv://${process.env.MONGO_DB_USERNAME}:${process.env.MONGO_DB_PASSWORD}@shopcluster.qj0ue.mongodb.net/${process.env.MONGO_DB_NAME}?retryWrites=true&w=majority`
-
+console.log(mongoConnectionString)
 mongoose.connect(`mongodb+srv://${process.env.MONGO_DB_USERNAME}:${process.env.MONGO_DB_PASSWORD}@shopcluster.qj0ue.mongodb.net/${process.env.MONGO_DB_NAME}?retryWrites=true&w=majority`,
     {
         useNewUrlParser: true,
@@ -29,9 +40,14 @@ mongoose.connect(`mongodb+srv://${process.env.MONGO_DB_USERNAME}:${process.env.M
                 title: req.body.title,
                 content: req.body.content
             })
-            post.save((err, post) => {
-                if(err) return res.status(400).json()
-                res.status(201).json()
+            post.save((err, resp) => {
+                if(err) return res.status(400).json({message: err})
+                const response = resp.toObject()
+                res.status(201).json({
+                        title: response.title,    
+                        content: response.content,
+                        _id: response._id
+                    })
             })
         })
         
@@ -42,8 +58,13 @@ mongoose.connect(`mongodb+srv://${process.env.MONGO_DB_USERNAME}:${process.env.M
                 posts
             })
         })
+
+        app.delete('/api/posts', async(req, res, next) => {
+            await Post.findByIdAndDelete({_id: req.query.id}, (err) => {
+                if(err) res.status(400).json(err)
+                res.status(200).json()
+            })
+        })
 })
-
-
 
 module.exports = app
