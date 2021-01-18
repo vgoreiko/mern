@@ -2,9 +2,10 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose')
 const dotenv = require('dotenv')
-const Post = require('./models/post')
+
 const winston = require('winston')
 const expressWinston = require('express-winston')
+const postsRoutes = require('./routes/posts')
 
 dotenv.config()
 const app = express();
@@ -35,36 +36,8 @@ mongoose.connect(`mongodb+srv://${process.env.MONGO_DB_USERNAME}:${process.env.M
         useNewUrlParser: true,
         useUnifiedTopology: true
     }).then(() => {
-        app.post('/api/posts', (req, res, next) => {
-            const post = new Post({
-                title: req.body.title,
-                content: req.body.content
-            })
-            post.save((err, resp) => {
-                if(err) return res.status(400).json({message: err})
-                const response = resp.toObject()
-                res.status(201).json({
-                        title: response.title,    
-                        content: response.content,
-                        _id: response._id
-                    })
-            })
-        })
-        
-        app.get('/api/posts', async (req, res, next) => {
-            const posts = await Post.find({})
-            res.status(200).json({
-                message: "Sending posts",
-                posts
-            })
-        })
+        app.use('/api/posts',postsRoutes)
 
-        app.delete('/api/posts', async(req, res, next) => {
-            await Post.findByIdAndDelete({_id: req.query.id}, (err) => {
-                if(err) res.status(400).json(err)
-                res.status(200).json()
-            })
-        })
 })
 
 module.exports = app
